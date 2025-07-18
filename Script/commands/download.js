@@ -7,10 +7,10 @@ module.exports.config = {
   name: "download",
   version: "1.0.0",
   hasPermssion: 0,
-  credits: "Aminul Sordar",
-  description: "Tự động nhận link trong câu lệnh và tải video về",
+  credits: "Alex Jhon Ponce - Powered by AlexRebornV2",
+  description: "Automatically detect link in command and download video",
   commandCategory: "media",
-  usages: "[bất kỳ văn bản chứa link]",
+  usages: "[any text containing link]",
   cooldowns: 5,
   dependencies: {
     axios: "",
@@ -24,18 +24,6 @@ module.exports.languages = {
     noLink: "⚠️ Please provide a valid video link.",
     unsupported: "❌ Unsupported link or video not found.",
     error: "🚫 Error downloading video. Please try again later."
-  },
-  ar: {
-    wait: "⏳ الرجاء الانتظار... جاري جلب رابط الفيديو.",
-    noLink: "⚠️ يرجى تقديم رابط فيديو صالح.",
-    unsupported: "❌ الرابط غير مدعوم أو الفيديو غير موجود.",
-    error: "🚫 حدث خطأ أثناء تنزيل الفيديو. يرجى المحاولة لاحقًا."
-  },
-  vi: {
-    wait: "⏳ Vui lòng chờ... đang lấy link video.",
-    noLink: "⚠️ Vui lòng gửi kèm link video hợp lệ.",
-    unsupported: "❌ Link không hỗ trợ hoặc không tìm thấy video.",
-    error: "🚫 Lỗi khi tải video. Vui lòng thử lại sau."
   }
 };
 
@@ -43,7 +31,7 @@ module.exports.run = async function({ api, event, args, getText }) {
   const { threadID, messageID } = event;
   const input = args.join(" ");
 
-  // Tìm link đầu tiên trong input
+  // Find the first link in input
   const linkMatch = input.match(/(https?:\/\/[^\s]+)/);
   if (!linkMatch) {
     return api.sendMessage(getText("noLink"), threadID, messageID);
@@ -54,7 +42,7 @@ module.exports.run = async function({ api, event, args, getText }) {
   api.setMessageReaction("⏳", messageID, () => {}, true);
 
   try {
-    // Gọi API lấy data video
+    // Call API to get video data
     const res = await axios.get(`https://nayan-video-downloader.vercel.app/alldown?url=${encodeURIComponent(url)}`);
     const data = res.data?.data;
 
@@ -65,14 +53,14 @@ module.exports.run = async function({ api, event, args, getText }) {
     const { title, high, low } = data;
     const videoUrl = high || low;
 
-    // Tạo folder cache nếu chưa có
+    // Create cache folder if not exists
     const cacheDir = path.join(__dirname, "cache");
     if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
 
     const filePath = path.join(cacheDir, `video_${Date.now()}.mp4`);
-    const caption = `🎬 Title: ${title}`;
+    const caption = `🎬 Title: ${title}\n\nPowered by AlexRebornV2`;
 
-    // Tải video về và gửi
+    // Download and send video
     request(videoUrl)
       .pipe(fs.createWriteStream(filePath))
       .on("close", () => {
