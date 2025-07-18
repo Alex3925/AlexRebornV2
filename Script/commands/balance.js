@@ -1,45 +1,47 @@
 module.exports.config = {
 	name: "balance",
-	version: "1.0.2",
-	hasPermssion: 0,
-	credits: "Mirai Team",
-	description: "Kiểm tra số tiền của bản thân hoặc người được tag",
+	version: "1.0.3", // Updated version
+	hasPermssion: 0, // Accessible to all users
+	credits: "Alex Jhon Ponce", // Updated credits
+	description: "Check your balance or the balance of a tagged user",
 	commandCategory: "economy",
-	usages: "[Tag]",
+	usages: "[@tag]",
 	cooldowns: 5
 };
 
 module.exports.languages = {
-	"vi": {
-		"sotienbanthan": "Số tiền bạn đang có: %1$",
-		"sotiennguoikhac": "Số tiền của %1 hiện đang có là: %2$"
-	},
 	"en": {
-		"sotienbanthan": "Your current balance: %1$",
-		"sotiennguoikhac": "%1's current balance: %2$."
+		"yourBalance": "Your current balance: $%1",
+		"otherBalance": "%1's current balance: $%2",
+		"noUserTagged": "Please tag a user to check their balance or use without tags to check your own."
 	}
-}
+};
 
-module.exports.run = async function({ api, event, args, Currencies, getText }) {
+module.exports.run = async function ({ api, event, args, Currencies, getText }) {
 	const { threadID, messageID, senderID, mentions } = event;
 
 	if (!args[0]) {
-		const money = (await Currencies.getData(senderID)).money;
-		return api.sendMessage(getText("sotienbanthan", money), threadID);
+		const money = (await Currencies.getData(senderID))?.money ?? 0;
+		return api.sendMessage(
+			`══✦ Balance ✦══\n${getText("yourBalance", money)}\nPowered by AlexRebornV2`,
+			threadID,
+			messageID
+		);
 	}
 
-	else if (Object.keys(event.mentions).length == 1) {
-		var mention = Object.keys(mentions)[0];
-		var money = (await Currencies.getData(mention)).money;
-		if (!money) money = 0;
-		return api.sendMessage({
-			body: getText("sotiennguoikhac", mentions[mention].replace(/\@/g, ""), money),
-			mentions: [{
-				tag: mentions[mention].replace(/\@/g, ""),
-				id: mention
-			}]
-		}, threadID, messageID);
+	if (Object.keys(mentions).length === 1) {
+		const mention = Object.keys(mentions)[0];
+		const money = (await Currencies.getData(mention))?.money ?? 0;
+		const name = mentions[mention].replace(/@/g, "");
+		return api.sendMessage(
+			{
+				body: `══✦ Balance ✦══\n${getText("otherBalance", name, money)}\nPowered by AlexRebornV2`,
+				mentions: [{ tag: name, id: mention }]
+			},
+			threadID,
+			messageID
+		);
 	}
 
-	else return global.utils.throwError(this.config.name, threadID, messageID);
-}
+	return api.sendMessage(getText("noUserTagged"), threadID, messageID);
+};
