@@ -5,64 +5,74 @@ const path = require("path");
 const { alldown } = require("shaon-videos-downloader");
 
 module.exports = {
-  config: {
-    name: "autodl",
-    version: "0.0.2",
-    hasPermssion: 0,
-    credits: "SHAON",
-    description: "Auto download videos when a link is sent",
-    commandCategory: "user",
-    usages: "",
-    cooldowns: 5
-  },
+	config: {
+		name: "autodl",
+		version: "0.0.4", // Updated version
+		hasPermssion: 0,
+		credits: "Alex Jhon Ponce",
+		description: "Automatically download videos when a link is sent",
+		commandCategory: "media",
+		usages: "",
+		cooldowns: 5,
+		dependencies: {
+			"axios": "",
+			"request": "",
+			"fs-extra": "",
+			"path": "",
+			"shaon-videos-downloader": ""
+		}
+	},
 
-  languages: {
-    en: {
-      downloading: "⏳ Please wait, downloading your video...",
-      success: "🎬 Enjoy your video!",
-      error: "❌ Failed to download video."
-    },
-    vi: {
-      downloading: "⏳ Vui lòng chờ, đang tải video...",
-      success: "🎬 Chúc bạn xem vui vẻ!",
-      error: "❌ Không thể tải video."
-    }
-  },
+	languages: {
+		"en": {
+			"downloading": "⏳ Downloading your video...",
+			"success": "🎬 Video downloaded successfully!",
+			"error": "❌ Failed to download video."
+		}
+	},
 
-  run: async function ({ api, event, args }) {
-    // This command does not need to be called directly
-    return api.sendMessage("⚠️ This command works automatically when you send a video link.", event.threadID, event.messageID);
-  },
+	run: async function ({ api, event }) {
+		return api.sendMessage("⚠️ This command works automatically when you send a video link.", event.threadID, event.messageID);
+	},
 
-  handleEvent: async function ({ api, event, getText }) {
-    const content = event.body || '';
-    const body = content.toLowerCase();
+	handleEvent: async function ({ api, event, getText }) {
+		const content = event.body || "";
+		if (!content.startsWith("https://")) return;
 
-    if (!body.startsWith("https://")) return;
+		try {
+			api.setMessageReaction("⏳", event.messageID, () => {}, true);
+			api.sendMessage(getText("downloading"), event.threadID, event.messageID);
 
-    try {
-      api.setMessageReaction("⚠️", event.messageID, () => {}, true);
-      api.sendMessage(getText("downloading"), event.threadID, event.messageID);
+			const data = await alldown(content);
+			if (!data.url) throw new Error("No downloadable video URL found");
 
-      const data = await alldown(content);
-      const videoUrl = data.url;
+			const videoBuffer = (await axios.get(data.url, { responseType: "arraybuffer" })).data;
+			const uniqueName = `auto_${Date.now()}.mp4`;
+			const filePath = path.join(__dirname, "cache", uniqueName);
 
-      api.setMessageReaction("☢️", event.messageID, () => {}, true);
+			await fs.ensureDir(path.join(__dirname, "cache"));
+			fs.writeFileSync(filePath, Buffer.from(videoBuffer));
 
-      const videoBuffer = (await axios.get(videoUrl, { responseType: "arraybuffer" })).data;
-
-      const filePath = path.join(__dirname, "cache", "auto.mp4");
-      fs.writeFileSync(filePath, Buffer.from(videoBuffer, "utf-8"));
-
-      return api.sendMessage({
-        body: `🔥🚀 MIRAI-BOT | 🔥💻\n📥⚡𝗔𝘂𝘁𝗼 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗲𝗿⚡📂\n${getText("success")}`,
-        attachment: fs.createReadStream(filePath)
-      }, event.threadID, () => fs.unlinkSync(filePath), event.messageID);
-
-    } catch (err) {
-      console.error("❌ Error:", err);
-      api.sendMessage(getText("error"), event.threadID, event.messageID);
-      api.setMessageReaction("❌", event.messageID, () => {}, true);
-    }
-  }
+			api.setMessageReaction("✅", event.messageID, () => {}, true);
+			return api.sendMessage(
+				{
+					body: `══✦ Auto Downloader ✦══\n${getText("success")}\nPowered by AlexRebornV2`,
+					attachment: fs.createReadStream(filePath)
+				},
+				event.threadID,
+				() => {
+					try {
+						fs.unlinkSync(filePath);
+					} catch (err) {
+						console.error("Failed to delete file:", err);
+					}
+				},
+				event.messageID
+			);
+		} catch (err) {
+			console.error("Error:", err);
+			api.setMessageReaction("❌", event.messageID, () => {}, true);
+			return api.sendMessage(getText("error"), event.threadID, event.messageID);
+		}
+	}
 };
